@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/* Define custom Tailwind CSS v4 Theme matching 16-Bit Stitch UI System */
+@theme {
+  --color-background: #0e1320;
+  --color-surface-container-lowest: #090e1b;
+  --color-surface-container-low: #161b29;
+  --color-surface-container: #1a1f2d;
+  --color-surface-container-high: #252a38;
+  --color-surface-container-highest: #303443;
+  --color-surface-bright: #343947;
+
+  --color-primary: #e6ffea;
+  --color-on-primary: #00391f;
+  --color-primary-container: #8ff0b5;
+  --color-on-primary-container: #006f42;
+  --color-primary-fixed: #8ff0b5;
+
+  --color-secondary: #72d4ed;
+  --color-on-secondary: #003640;
+  --color-secondary-container: #319db5;
+  --color-secondary-fixed-dim: #72d4ed;
+
+  --color-tertiary: #fff7ee;
+  --color-tertiary-container: #ffd77e;
+  --color-on-tertiary-container: #7a5c00;
+  --color-tertiary-fixed: #ffd77e;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-on-surface: #dee2f5;
+  --color-on-surface-variant: #becabf;
+  --color-outline: #88948a;
+  --color-outline-variant: #3e4941;
+
+  --font-headline: 'Space Mono', monospace;
+  --font-body: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base resets & offline font fallbacks */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #0e1320;
+  color: #dee2f5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Heading & Label Fonts */
+h1, h2, h3, h4, .font-space, .font-headline {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.font-body {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* CRT Scanlines Overlay */
+.scanlines {
+  background: 
+    linear-gradient(rgba(14, 19, 32, 0) 50%, rgba(9, 14, 27, 0.45) 50%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015), rgba(0, 0, 0, 0.03));
+  background-size: 100% 4px, 6px 100%;
+}
+
+/* Pixel Bevels & Borders */
+.pixel-bevel {
+  box-shadow: 
+    inset 2px 2px 0px 0px #303443,
+    inset -2px -2px 0px 0px #090e1b,
+    2px 2px 0px 0px #090e1b;
+}
+
+.pixel-border {
+  border: 2px solid #303443;
+  box-shadow: 2px 2px 0px 0px #090e1b;
+}
+
+.pixel-shadow {
+  box-shadow: 4px 4px 0px 0px #090e1b;
+}
+
+/* Sharp Corners */
+button, input, textarea, select, div, span, label {
+  border-radius: 0px !important;
+}
+
+/* Custom Retro Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090e1b;
+  border-left: 1px solid #252a38;
+}
+::-webkit-scrollbar-thumb {
+  background: #303443;
+  border: 1px solid #090e1b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8ff0b5;
+}
+
+/* Inputs & Focus States */
+input[type="text"], textarea {
+  font-family: 'JetBrains Mono', monospace;
+  background-color: #090e1b;
+  color: #dee2f5;
+  border: 2px solid #303443;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus, textarea:focus {
+  border-color: #72d4ed !important;
+  box-shadow: 0 0 0 2px rgba(114, 212, 237, 0.25), inset 2px 2px 0px 0px #090e1b;
+}
+
+button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+  user-select: none;
+}
