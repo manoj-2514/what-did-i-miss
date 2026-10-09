@@ -260,7 +260,9 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
 # ============================================================================
 BASE_DIR = Path(__file__).resolve().parent
 SAMPLE_CHATS_DIR = (BASE_DIR / ".." / "sample_chats").resolve()
-FRONTEND_DIR = (BASE_DIR / ".." / "frontend").resolve()
+FRONTEND_DIR = (BASE_DIR / ".." / "frontend" / "dist").resolve()
+if not FRONTEND_DIR.exists():
+    FRONTEND_DIR = (BASE_DIR / ".." / "frontend").resolve()
 
 # Serve ../sample_chats at /sample_chats if the folder exists
 if SAMPLE_CHATS_DIR.exists():

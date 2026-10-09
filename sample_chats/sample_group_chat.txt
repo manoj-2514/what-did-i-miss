@@ -1,0 +1,10 @@
+[10:15] Rahul: Hey team, we need to finalize our pitch deck and slides for the demo.
+[10:16] Rahul: Can someone volunteer to finish the introduction and problem statement?
+10:18 - Manoj: I can take the intro section.
+10:20 - Priya: Awesome! Manoj, please make sure the slides are done by 5pm today.
+10:22 - Rahul: Confirmed, we decided to use Next.js and FastAPI for our hackathon stack.
+10:25 - Priya: Don't forget, tomorrow is the final submission deadline!
+10:30 - Amit: Did anyone test the local API server?
+Amit: Make sure it runs locally without any cloud keys.
+12/10/26, 10:35 - Rahul: Yes, let's go with pure local models.
+12/10/26, 10:36 - Manoj: Agreed. I will test the endpoints before 6.

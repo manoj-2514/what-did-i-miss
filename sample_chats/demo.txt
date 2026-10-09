@@ -1,7 +1,77 @@
-[10:15 AM] Rahul: Manoj, did you push the updated FastAPI endpoints to main?
-[10:18 AM] Manoj: I am running local Ollama llama3 model tests now. Will push in 5 minutes!
-[10:20 AM] Priya: Can someone confirm if the hackathon submission deck is due today by 5pm?
-[10:22 AM] Rahul: Manoj, please submit the report by 5pm as discussed in our sync meeting.
-[10:25 AM] Vikram: Pepperoni and veggie pizzas ordered for Room 302!
-[10:28 AM] Manoj: Confirmed, decision made to lock codebase by 4pm and run offline Wi-Fi pitch demo.
-[10:30 AM] Rahul: @Manoj Which port is Ollama listening on? Currently defaulting to 11434.
+[09:00] Rahul: good morning team, hackathon day finally lol
+[09:02] Sneha: morning!! i need coffee before i can think
+[09:03] Amit: coffee machine on the second floor is broken again
+[09:05] Karthik: classic. the canteen one works though
+[09:07] Priya: reached the lab, got us the corner table
+[09:09] Manoj: on my way, stuck behind a bus near the signal
+[09:12] Rahul: Quick update on the stack: FastAPI for the backend,
+Ollama for the local model, plain HTML for the frontend.
+[09:15] Rahul: We decided to go with FastAPI and Ollama, no cloud APIs at all.
+[09:17] Amit: nice, local only means judges cannot complain about privacy
+[09:20] Sneha: my laptop fan sounds like a jet engine already
+[09:22] Karthik: same, thermal throttling speedrun
+[09:25] Manoj: reached, setting up the venv now
+[09:28] Priya: @Manoj did you test the parser on the WhatsApp export format?
+[09:30] Manoj: yes, brackets and dashes both work. multi-line messages too
+[09:33] Amit: legend
+[09:35] Karthik: Did anyone get the lab Wi-Fi password?
+[09:36] Sneha: it is on the whiteboard behind you lol
+[09:38] Karthik: found it, thanks
+[09:40] Rahul: @Manoj please submit the registration form by 5 PM today, the portal closes after that
+[09:42] Manoj: on it
+[09:45] Amit: breakfast break anyone, i could eat a whole paratha
+[09:46] Sneha: yes please, aloo paratha with curd
+[09:48] Priya: i am in, hunger level is dangerous
+[09:50] Karthik: cricket score check, India is already two down lol
+[09:52] Amit: not again, the middle order has no chill
+[09:55] Rahul: focus people, memes later
+[10:00] Priya: I will finish the slides by 5 PM today, intro and problem statement are done
+[10:03] Amit: I will record the demo video tomorrow morning once the UI is ready
+[10:05] Sneha: I will write the README and test everything on a clean laptop
+[10:08] Karthik: i will design the architecture slide, give me some time
+[10:10] Manoj: I will handle the backend and the Ollama integration, ping me if anything breaks
+[10:12] Rahul: great, the split is clear then
+[10:15] Sneha: this chai is mid honestly
+[10:16] Amit: lowering the bar every hour lol
+[10:18] Karthik: my exam results came out and i am not ready to look
+[10:19] Priya: oh no, the internals marks too
+[10:21] Sneha: do not remind me, the DBMS paper was brutal
+[10:23] Amit: operating systems was worse, deadlocks everywhere lol
+[10:25] Karthik: Manoj, push your branch before tomorrow morning so Amit can merge it
+[10:27] Manoj: will do, pushing a first version after lunch
+[10:30] Rahul: also remember the demo must work with the wifi turned off
+[10:32] Sneha: wait is the demo laptop the same one we are using now?
+[10:34] Rahul: yes, the one with the model installed
+[10:36] Amit: perfect, the 3B model fits in its memory
+[10:40] Karthik: someone shared a meme about regex in our college group, it is painfully accurate
+[10:41] Priya: send it, i need a laugh
+[10:43] Sneha: sent, the one with two problems
+[10:45] Amit: ha, now you have two problems indeed
+[10:50] Rahul: back to work in ten minutes please
+[10:55] Sneha: @Manoj can you confirm the venue room number for the final round?
+[10:57] Manoj: room 302, second floor, next to the lab
+[11:00] Karthik: lunch plan is biryani, whoever disagrees can eat salad
+[11:02] Amit: biryani supremacy
+[11:03] Priya: salad is not food, it is a side effect
+[11:05] Sneha: lmao
+[11:10] Rahul: Confirmed, let's go with the dark green theme for the UI, final call.
+[11:12] Amit: love it, matches the terminal vibe
+[11:15] Priya: @Manoj the final submission deadline is 12/10, don't forget to upload the repo link
+[11:17] Manoj: noted, I will upload the link as soon as the repo is clean
+[11:20] Amit: Who has the HDMI cable?
+[11:21] Sneha: it is in the black bag under my table
+[11:25] Rahul: thanks Sneha
+[11:30] Karthik: thanks Manoj, the fallback idea is great, the demo will not crash if the model is slow
+[11:32] Sneha: Manoj you are a legend for fixing that parser bug lol
+[11:34] Amit: absolute legend
+[11:40] Sneha: Reminder for everyone, the lab closes in the evening so we
+need to finish the testing early and leave the room clean.
+[11:45] Priya: slides are at 80 percent, adding screenshots next
+[11:50] Amit: UI is almost ready, only the loading animation is left
+[11:55] Rahul: nice, keep going everyone
+[12:05] Karthik: pani puri break at the gate, 10 minutes
+[12:07] Sneha: yes please
+[12:30] Manoj: first full test works end to end, summary and action items both look good
+[12:35] Rahul: @Manoj demo order is you first, then Priya, then Amit
+[13:00] Rahul: great work team, lunch time
+[13:30] Priya: biryani was worth it
