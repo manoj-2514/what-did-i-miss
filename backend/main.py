@@ -8,6 +8,7 @@ Run locally with:
 
 import asyncio
 import os
+import re
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -180,15 +181,21 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     # ========================================================================
     # Stage 3: Local AI Inference (Ollama)
     # ========================================================================
-    # PERFORMANCE OPTIMIZATION: On a CPU-only local model, sequential token
-    # generation is compute-bound and slow. Processing large chat backlogs causes
-    # high latency. When message count exceeds 80, we filter down to medium and
-    # high priority messages plus their immediately preceding message for context,
-    # reducing prompt tokens significantly while retaining all decisions and tasks.
-    if len(scored_messages) > 80:
+    # PERFORMANCE OPTIMIZATION: A CPU-only 3B model spends most of its time
+    # reading input, so for chats of more than 25 messages we drop pure small talk
+    # but keep anything that could be a task: every message with priority medium or
+    # high, plus every message matching commitment phrases, plus the one message
+    # before each selected message for context (deduplicated in chronological order).
+    # Chats of 25 messages or fewer are sent in full.
+    if len(scored_messages) > 25:
+        commitment_pattern = re.compile(
+            r"\b(?:i\s+will|i'?ll|will\s+\w+|let\s+me|i\s+can|volunteer|take\s+care|handle|working\s+on|assigned|please)\b",
+            re.IGNORECASE,
+        )
         relevant_indices = set()
         for idx, msg in enumerate(scored_messages):
-            if msg.get("priority") in ("high", "medium"):
+            text = msg.get("text", "")
+            if msg.get("priority") in ("high", "medium") or commitment_pattern.search(text):
                 if idx > 0:
                     relevant_indices.add(idx - 1)
                 relevant_indices.add(idx)
