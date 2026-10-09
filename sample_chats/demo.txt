@@ -1,0 +1,7 @@
+[10:15 AM] Rahul: Manoj, did you push the updated FastAPI endpoints to main?
+[10:18 AM] Manoj: I am running local Ollama llama3 model tests now. Will push in 5 minutes!
+[10:20 AM] Priya: Can someone confirm if the hackathon submission deck is due today by 5pm?
+[10:22 AM] Rahul: Manoj, please submit the report by 5pm as discussed in our sync meeting.
+[10:25 AM] Vikram: Pepperoni and veggie pizzas ordered for Room 302!
+[10:28 AM] Manoj: Confirmed, decision made to lock codebase by 4pm and run offline Wi-Fi pitch demo.
+[10:30 AM] Rahul: @Manoj Which port is Ollama listening on? Currently defaulting to 11434.
