@@ -15,19 +15,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-# Ensure backend directory is in sys.path for robust imports whether run
-# from backend/ ("uvicorn main:app") or from workspace root.
 BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 try:
     from parser import parse_chat
-    from heuristics import score_message, build_attention, extract_stats
+    from heuristics import score_message, build_attention, extract_stats, extract_action_items
     from llm import summarize, ollama_ready, warm_up, MODEL
 except ImportError:
     from backend.parser import parse_chat
-    from backend.heuristics import score_message, build_attention, extract_stats
+    from backend.heuristics import score_message, build_attention, extract_stats, extract_action_items
     from backend.llm import summarize, ollama_ready, warm_up, MODEL
 
 from fastapi import FastAPI, HTTPException
@@ -36,19 +34,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 
-# ============================================================================
-# FastAPI Lifespan Handler (Non-blocking warm-up on startup)
-# ============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Trigger background warm-up of Ollama model so model weights are preloaded into memory
     asyncio.create_task(warm_up())
     yield
 
 
-# ============================================================================
-# FastAPI App Initialization
-# ============================================================================
 app = FastAPI(
     title="What Did I Miss? - Local Backend",
     description="Local-first micro-app to parse and summarize group chats without external cloud APIs.",
@@ -56,7 +47,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration allowing all origins (for local development & frontend ports)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -66,9 +56,6 @@ app.add_middleware(
 )
 
 
-# ============================================================================
-# Pydantic Models for Strict API Contract (Never rename fields)
-# ============================================================================
 class AnalyzeRequest(BaseModel):
     user_name: str = Field(default="", description="Name of the user requesting the catch-up summary")
     chat: str = Field(..., description="Raw text transcript pasted from a group chat")
@@ -110,9 +97,6 @@ class AnalyzeResponse(BaseModel):
     ai_used: bool = False
 
 
-# ============================================================================
-# API Routes
-# ============================================================================
 @app.get("/health", tags=["System"])
 async def health_check() -> Dict[str, Any]:
     """Health check endpoint verifying backend status and local Ollama readiness."""
@@ -131,7 +115,7 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     1. Parse raw transcript into structured messages.
     2. Score priority and assign heuristic tags.
     3. Extract high-priority attention items directed at the user.
-    4. Compile decisions and conversation statistics.
+    4. Compile decisions, heuristic action items, and conversation statistics.
     5. Run local AI summarization via Ollama (fallback to heuristics on error).
     6. Return structured response sorted by priority.
     """
@@ -152,13 +136,12 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
             status_code=400,
             detail="No valid messages could be parsed from the provided text. Please ensure valid chat format.",
         )
-    print(f"[Analyze] Stage 1: Parsed {len(parsed_messages)} messages from raw input.")
 
     # Stage 2: Heuristic Scoring & Tagging
     scored_messages = [score_message(msg, user_name) for msg in parsed_messages]
     attention_items = build_attention(scored_messages, user_name)
     stats_data = extract_stats(scored_messages)
-    print(f"[Analyze] Stage 2: Scored {len(scored_messages)} messages, identified {len(attention_items)} attention items.")
+    heuristic_actions = extract_action_items(scored_messages, user_name)
 
     # Extract heuristic decisions
     heuristic_decisions = [
@@ -171,22 +154,14 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     high_priority_msgs = [m for m in scored_messages if m["priority"] == "high"]
     if high_priority_msgs:
         tldr_snippets = [f"{m['sender']}: {m['text']}" for m in high_priority_msgs[:3]]
-        heuristic_tldr = "Key Highlights: " + " | ".join(tldr_snippets)
+        heuristic_tldr = "Key Highlights:\n- " + "\n- ".join(tldr_snippets)
     elif scored_messages:
         tldr_snippets = [f"{m['sender']}: {m['text']}" for m in scored_messages[:3]]
-        heuristic_tldr = "Summary: " + " | ".join(tldr_snippets)
+        heuristic_tldr = "Summary:\n- " + "\n- ".join(tldr_snippets)
     else:
         heuristic_tldr = "No messages available to summarize."
 
-    # ========================================================================
     # Stage 3: Local AI Inference (Ollama)
-    # ========================================================================
-    # PERFORMANCE OPTIMIZATION: A CPU-only 3B model spends most of its time
-    # reading input, so for chats of more than 25 messages we drop pure small talk
-    # but keep anything that could be a task: every message with priority medium or
-    # high, plus every message matching commitment phrases, plus the one message
-    # before each selected message for context (deduplicated in chronological order).
-    # Chats of 25 messages or fewer are sent in full.
     if len(scored_messages) > 25:
         commitment_pattern = re.compile(
             r"\b(?:i\s+will|i'?ll|will\s+\w+|let\s+me|i\s+can|volunteer|take\s+care|handle|working\s+on|assigned|please)\b",
@@ -203,18 +178,15 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     else:
         llm_input_messages = scored_messages
 
-    # Execute LLM summarization with timing
     start_llm = time.perf_counter()
     llm_result = await summarize(llm_input_messages, user_name)
     llm_duration = time.perf_counter() - start_llm
-    print(f"[Analyze] Stage 3: LLM inference completed in {llm_duration:.2f}s.")
 
     # Determine final TLDR, decisions, and action items
     if llm_result is not None:
         ai_used = True
         tldr = llm_result.get("tldr") or heuristic_tldr
 
-        # Combine LLM decisions + heuristic decisions, deduplicated case-insensitively
         llm_decisions = llm_result.get("decisions", [])
         combined_decisions: List[str] = []
         seen_decisions = set()
@@ -226,23 +198,29 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
                 combined_decisions.append(clean_d)
         decisions = combined_decisions
 
-        # Action items parsed from LLM
-        action_items = [ActionItem(**item) for item in llm_result.get("action_items", [])]
+        llm_actions = [ActionItem(**item) for item in llm_result.get("action_items", [])]
+        
+        # Merge LLM actions with heuristic actions so nothing is missed
+        seen_task_keys = {a.task.lower().strip() for a in llm_actions}
+        merged_actions = list(llm_actions)
+        for ha in heuristic_actions:
+            h_task = ha.get("task", "").strip()
+            if h_task and h_task.lower() not in seen_task_keys:
+                seen_task_keys.add(h_task.lower())
+                merged_actions.append(ActionItem(**ha))
+
+        action_items = merged_actions
     else:
         ai_used = False
         tldr = heuristic_tldr
         decisions = heuristic_decisions
-        action_items = []
-        print("[Analyze] Using deterministic heuristics fallback (ai_used=False).")
+        action_items = [ActionItem(**item) for item in heuristic_actions]
 
-    # Sort messages: high -> medium -> low (stable sort preserving chronological order within tiers)
     priority_order = {"high": 0, "medium": 1, "low": 2}
     sorted_messages = sorted(
         scored_messages,
         key=lambda m: priority_order.get(m.get("priority", "low"), 3),
     )
-
-    print(f"[Analyze] Stage 4: Returning response (ai_used={ai_used}).")
 
     return AnalyzeResponse(
         tldr=tldr,
@@ -255,19 +233,14 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     )
 
 
-# ============================================================================
-# Static Files Mounts (Mounted LAST to avoid intercepting API routes)
-# ============================================================================
 BASE_DIR = Path(__file__).resolve().parent
 SAMPLE_CHATS_DIR = (BASE_DIR / ".." / "sample_chats").resolve()
 FRONTEND_DIR = (BASE_DIR / ".." / "frontend" / "dist").resolve()
 if not FRONTEND_DIR.exists():
     FRONTEND_DIR = (BASE_DIR / ".." / "frontend").resolve()
 
-# Serve ../sample_chats at /sample_chats if the folder exists
 if SAMPLE_CHATS_DIR.exists():
     app.mount("/sample_chats", StaticFiles(directory=str(SAMPLE_CHATS_DIR)), name="sample_chats")
 
-# Serve ../frontend at "/" with html=True if the folder exists
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

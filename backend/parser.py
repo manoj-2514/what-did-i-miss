@@ -3,9 +3,9 @@ parser.py - Robust chat parser for 'What Did I Miss?' micro-app.
 
 Parses exported chat transcripts into structured message dictionaries.
 Supported formats:
-1. Bracketed timestamp:      "[10:32] Rahul: Hey team"
-2. Standard dash timestamp:   "10:32 - Rahul: Hey team"
-3. Full date/time WhatsApp:   "12/10/26, 10:32 - Rahul: Hey team"
+1. Bracketed timestamp:      "[10:32] Rahul: Hey team" or "[2026-10-09 10:32:00] Rahul: Hey team"
+2. Standard dash timestamp:   "10:32 - Rahul: Hey team" or "12/10/26, 10:32 - Rahul: Hey team"
+3. Discord / Slack format:    "Rahul — 10:32 AM: Hey team" or "Rahul [10:32]: Hey team"
 4. Sender-only (no time):     "Rahul: Hey team"
 5. Multiline continuation:    Any line without a sender is appended to the previous message.
 
@@ -17,18 +17,18 @@ import re
 from typing import List, Dict, Any
 
 # Regular expressions for supported message header formats:
-# 1. Bracketed timestamp: [10:32] or [12/10/26, 10:32:00 AM] followed by Sender: Text
 PATTERN_BRACKET = re.compile(
     r"^\[(?P<time>[^\]]+)\]\s*(?P<sender>[^:\n\r]+?):\s*(?P<text>.*)$"
 )
 
-# 2. WhatsApp dash timestamp: "12/10/26, 10:32 - Rahul: text" or "10:32 - Rahul: text"
 PATTERN_DASH = re.compile(
-    r"^(?P<time>(?:\d{1,4}[/-]\d{1,2}[/-]\d{1,4}[,\s]+)?\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s*-\s*(?P<sender>[^:\n\r]+?):\s*(?P<text>.*)$"
+    r"^(?P<time>(?:\d{1,4}[/-]\d{1,2}[/-]\d{1,4}[,\s]+)?\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:-|—)\s*(?P<sender>[^:\n\r]+?):\s*(?P<text>.*)$"
 )
 
-# 3. Simple sender and text with no timestamp: "Rahul: text"
-# Avoid matching URLs like "http:..." or lines that are not sender labels.
+PATTERN_DISCORD_SLACK = re.compile(
+    r"^(?P<sender>[^:\n\r\-\—\[]+?)\s*(?:\[|—|-)\s*(?P<time>\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?|(?:\d{1,4}[/-]\d{1,2}[/-]\d{1,4}\s+\d{1,2}:\d{2}))\]?\s*:\s*(?P<text>.*)$"
+)
+
 PATTERN_SENDER_ONLY = re.compile(
     r"^(?P<sender>[A-Za-z0-9_\u00C0-\u017F\s\+\(\)\.@'-]{1,40}?):\s*(?P<text>.*)$"
 )
@@ -64,16 +64,6 @@ def clean_line(line: str) -> str:
 def parse_chat(raw: str) -> List[Dict[str, str]]:
     """
     Parse raw chat text into a list of structured message dicts.
-    
-    Each message dictionary has the shape:
-    {
-        "sender": str,
-        "time": str,
-        "text": str
-    }
-    
-    Multiline messages (lines with no sender prefix) are concatenated
-    to the preceding message using a space.
     """
     if not raw or not isinstance(raw, str):
         return []
@@ -83,7 +73,7 @@ def parse_chat(raw: str) -> List[Dict[str, str]]:
     try:
         lines = raw.splitlines()
         has_timestamps = any(
-            PATTERN_BRACKET.match(clean_line(l)) or PATTERN_DASH.match(clean_line(l))
+            PATTERN_BRACKET.match(clean_line(l)) or PATTERN_DASH.match(clean_line(l)) or PATTERN_DISCORD_SLACK.match(clean_line(l))
             for l in lines
         )
 
@@ -92,7 +82,6 @@ def parse_chat(raw: str) -> List[Dict[str, str]]:
             if not line:
                 continue
 
-            # Skip automated system lines
             if is_system_line(line):
                 continue
 
@@ -116,12 +105,21 @@ def parse_chat(raw: str) -> List[Dict[str, str]]:
                 })
                 continue
 
-            # Try Match 3: Rahul: text (only when chat has no timestamped headers)
+            # Try Match 3: Discord / Slack format: Rahul — 10:32 AM: text
+            match = PATTERN_DISCORD_SLACK.match(line)
+            if match:
+                parsed_messages.append({
+                    "sender": match.group("sender").strip(),
+                    "time": match.group("time").strip(),
+                    "text": match.group("text").strip(),
+                })
+                continue
+
+            # Try Match 4: Rahul: text (only when chat has no timestamped headers)
             if not has_timestamps:
                 match = PATTERN_SENDER_ONLY.match(line)
                 if match:
                     sender_candidate = match.group("sender").strip()
-                    # Ensure the sender isn't a URL scheme like 'http' or 'https'
                     if sender_candidate.lower() not in {"http", "https"} and "//" not in sender_candidate:
                         parsed_messages.append({
                             "sender": sender_candidate,
@@ -138,27 +136,9 @@ def parse_chat(raw: str) -> List[Dict[str, str]]:
                 else:
                     parsed_messages[-1]["text"] = line
             else:
-                # Malformed initial line with no predecessor; ignore safely
                 continue
 
     except Exception as exc:
-        # Guarantee that parse_chat never crashes on malformed input
         print(f"[parser.py] Warning: parsing encountered an unexpected error: {exc}")
 
     return parsed_messages
-
-
-if __name__ == "__main__":
-    # Quick self-test demonstration
-    sample = """
-    Messages are end-to-end encrypted
-    [10:32] Rahul: Hey team, we need to finalize the slides.
-    Can someone take the intro?
-    10:33 - Manoj: I can do it by 5pm today.
-    12/10/26, 10:35 - Rahul: Awesome, let's go with that.
-    Rahul: Don't forget the demo video!
-    It should be under 2 minutes.
-    """
-    results = parse_chat(sample)
-    for idx, msg in enumerate(results, 1):
-        print(f"{idx}. [{msg['time'] or 'NO TIME'}] {msg['sender']}: {msg['text']}")
