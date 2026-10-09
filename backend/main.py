@@ -6,10 +6,13 @@ Run locally with:
     uvicorn main:app --reload --port 8000
 """
 
+import asyncio
 import os
 import sys
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Ensure backend directory is in sys.path for robust imports whether run
 # from backend/ ("uvicorn main:app") or from workspace root.
@@ -20,14 +23,27 @@ if str(BACKEND_DIR) not in sys.path:
 try:
     from parser import parse_chat
     from heuristics import score_message, build_attention, extract_stats
+    from llm import summarize, ollama_ready, warm_up, MODEL
 except ImportError:
     from backend.parser import parse_chat
     from backend.heuristics import score_message, build_attention, extract_stats
+    from backend.llm import summarize, ollama_ready, warm_up, MODEL
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+
+# ============================================================================
+# FastAPI Lifespan Handler (Non-blocking warm-up on startup)
+# ============================================================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Trigger background warm-up of Ollama model so model weights are preloaded into memory
+    asyncio.create_task(warm_up())
+    yield
+
 
 # ============================================================================
 # FastAPI App Initialization
@@ -36,6 +52,7 @@ app = FastAPI(
     title="What Did I Miss? - Local Backend",
     description="Local-first micro-app to parse and summarize group chats without external cloud APIs.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS configuration allowing all origins (for local development & frontend ports)
@@ -89,15 +106,21 @@ class AnalyzeResponse(BaseModel):
     action_items: List[ActionItem]
     messages: List[MessageItem]
     stats: StatsItem
+    ai_used: bool = False
 
 
 # ============================================================================
 # API Routes
 # ============================================================================
 @app.get("/health", tags=["System"])
-def health_check() -> Dict[str, str]:
-    """Health check endpoint to verify backend status."""
-    return {"status": "ok"}
+async def health_check() -> Dict[str, Any]:
+    """Health check endpoint verifying backend status and local Ollama readiness."""
+    is_ollama_available = await ollama_ready()
+    return {
+        "status": "ok",
+        "ollama": is_ollama_available,
+        "model": MODEL,
+    }
 
 
 @app.post("/analyze", response_model=AnalyzeResponse, tags=["Analysis"])
@@ -108,7 +131,8 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     2. Score priority and assign heuristic tags.
     3. Extract high-priority attention items directed at the user.
     4. Compile decisions and conversation statistics.
-    5. Return structured response sorted by priority.
+    5. Run local AI summarization via Ollama (fallback to heuristics on error).
+    6. Return structured response sorted by priority.
     """
     user_name = req.user_name.strip()
     raw_chat = req.chat
@@ -135,41 +159,74 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
     stats_data = extract_stats(scored_messages)
     print(f"[Analyze] Stage 2: Scored {len(scored_messages)} messages, identified {len(attention_items)} attention items.")
 
-    # Extract Decisions tagged by heuristics
-    decisions = [
+    # Extract heuristic decisions
+    heuristic_decisions = [
         msg["text"]
         for msg in scored_messages
         if "decision" in msg.get("tags", [])
     ]
 
-    # Action Items (placeholder for next step)
-    action_items: List[ActionItem] = []
-
-    # Temporary TLDR built from the top 3 high-priority messages
+    # Baseline heuristic TLDR (used as default / fallback)
     high_priority_msgs = [m for m in scored_messages if m["priority"] == "high"]
     if high_priority_msgs:
         tldr_snippets = [f"{m['sender']}: {m['text']}" for m in high_priority_msgs[:3]]
-        tldr = "Key Highlights: " + " | ".join(tldr_snippets)
+        heuristic_tldr = "Key Highlights: " + " | ".join(tldr_snippets)
     elif scored_messages:
         tldr_snippets = [f"{m['sender']}: {m['text']}" for m in scored_messages[:3]]
-        tldr = "Summary: " + " | ".join(tldr_snippets)
+        heuristic_tldr = "Summary: " + " | ".join(tldr_snippets)
     else:
-        tldr = "No messages available to summarize."
+        heuristic_tldr = "No messages available to summarize."
 
     # ========================================================================
-    # LLM PLACEHOLDER (Step 2 Integration)
-    # In the next step, a local LLM module (llm.py) will be plugged in here to
-    # generate an AI-powered TLDR summary, extract decisions, and identify action items:
-    #
-    # try:
-    #     from llm import analyze_with_local_llm
-    #     llm_output = await analyze_with_local_llm(scored_messages, user_name)
-    #     tldr = llm_output.get("tldr", tldr)
-    #     decisions = llm_output.get("decisions", decisions)
-    #     action_items = [ActionItem(**item) for item in llm_output.get("action_items", [])]
-    # except ImportError:
-    #     pass  # llm.py not yet implemented
+    # Stage 3: Local AI Inference (Ollama)
     # ========================================================================
+    # PERFORMANCE OPTIMIZATION: On a CPU-only local model, sequential token
+    # generation is compute-bound and slow. Processing large chat backlogs causes
+    # high latency. When message count exceeds 80, we filter down to medium and
+    # high priority messages plus their immediately preceding message for context,
+    # reducing prompt tokens significantly while retaining all decisions and tasks.
+    if len(scored_messages) > 80:
+        relevant_indices = set()
+        for idx, msg in enumerate(scored_messages):
+            if msg.get("priority") in ("high", "medium"):
+                if idx > 0:
+                    relevant_indices.add(idx - 1)
+                relevant_indices.add(idx)
+        llm_input_messages = [scored_messages[i] for i in sorted(relevant_indices)]
+    else:
+        llm_input_messages = scored_messages
+
+    # Execute LLM summarization with timing
+    start_llm = time.perf_counter()
+    llm_result = await summarize(llm_input_messages, user_name)
+    llm_duration = time.perf_counter() - start_llm
+    print(f"[Analyze] Stage 3: LLM inference completed in {llm_duration:.2f}s.")
+
+    # Determine final TLDR, decisions, and action items
+    if llm_result is not None:
+        ai_used = True
+        tldr = llm_result.get("tldr") or heuristic_tldr
+
+        # Combine LLM decisions + heuristic decisions, deduplicated case-insensitively
+        llm_decisions = llm_result.get("decisions", [])
+        combined_decisions: List[str] = []
+        seen_decisions = set()
+        for d in (llm_decisions + heuristic_decisions):
+            clean_d = d.strip()
+            key = clean_d.lower()
+            if clean_d and key not in seen_decisions:
+                seen_decisions.add(key)
+                combined_decisions.append(clean_d)
+        decisions = combined_decisions
+
+        # Action items parsed from LLM
+        action_items = [ActionItem(**item) for item in llm_result.get("action_items", [])]
+    else:
+        ai_used = False
+        tldr = heuristic_tldr
+        decisions = heuristic_decisions
+        action_items = []
+        print("[Analyze] Using deterministic heuristics fallback (ai_used=False).")
 
     # Sort messages: high -> medium -> low (stable sort preserving chronological order within tiers)
     priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -178,7 +235,7 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
         key=lambda m: priority_order.get(m.get("priority", "low"), 3),
     )
 
-    print(f"[Analyze] Stage 3: Completed analysis. Returning response.")
+    print(f"[Analyze] Stage 4: Returning response (ai_used={ai_used}).")
 
     return AnalyzeResponse(
         tldr=tldr,
@@ -187,6 +244,7 @@ async def analyze_chat(req: AnalyzeRequest) -> AnalyzeResponse:
         action_items=action_items,
         messages=[MessageItem(**item) for item in sorted_messages],
         stats=StatsItem(**stats_data),
+        ai_used=ai_used,
     )
 
 

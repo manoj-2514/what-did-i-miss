@@ -164,6 +164,13 @@ def score_message(msg: Dict[str, str], user_name: str) -> Dict[str, Any]:
     }
 
 
+# First-person commitment pattern (skip self-commitments from other participants in attention)
+FIRST_PERSON_COMMITMENT_PATTERN = re.compile(
+    r"^\s*(?:i\s+will|i'?ll|i\s+am|i'?m|let\s+me|i\s+can|i\s+shall)\b",
+    re.IGNORECASE,
+)
+
+
 def build_attention(messages: List[Dict[str, Any]], user_name: str) -> List[Dict[str, Any]]:
     """
     Select messages that require the user's attention:
@@ -197,6 +204,10 @@ def build_attention(messages: List[Dict[str, Any]], user_name: str) -> List[Dict
             reason = "question"
 
         if reason:
+            # Skip if reason is deadline or question and message starts with a first-person commitment
+            if reason in ("deadline", "question") and FIRST_PERSON_COMMITMENT_PATTERN.search(text):
+                continue
+
             attention.append({
                 "sender": msg.get("sender", ""),
                 "text": text,

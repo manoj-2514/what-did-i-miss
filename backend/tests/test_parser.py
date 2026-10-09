@@ -135,6 +135,16 @@ def test_heuristics():
     user_own_msg = {"sender": "Manoj", "time": "10:05", "text": "I will finish by 5pm", "priority": "high"}
     assert build_attention([user_own_msg], "Manoj") == []
 
+    # First-person commitment from another person skipped when reason is deadline
+    amit_commitment = {"sender": "Amit", "time": "10:22", "text": "I will design the UI before 6pm", "priority": "high"}
+    assert build_attention([amit_commitment], "Manoj") == []
+
+    # First-person commitment that explicitly mentions the user stays (reason is mention)
+    amit_mention = {"sender": "Amit", "time": "10:23", "text": "I will do it, Manoj please confirm by 5pm", "priority": "high"}
+    amit_attn = build_attention([amit_mention], "Manoj")
+    assert len(amit_attn) == 1
+    assert amit_attn[0]["reason"] == "mention"
+
     # Stats
     stats = extract_stats([scored, user_own_msg])
     assert stats["total_messages"] == 2
