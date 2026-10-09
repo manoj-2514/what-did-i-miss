@@ -1,0 +1,21 @@
+{
+  "name": "what-did-i-miss-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --port 3000"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/space-mono": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "material-symbols": "^0.47.6",
+    "tailwindcss": "^4.3.3"
+  }
+}
