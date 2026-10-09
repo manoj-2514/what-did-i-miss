@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Did I Miss? — Local AI Chat Recap Terminal</title>
+  <meta name="description" content="Local-first 16-bit retro RPG chat recap terminal powered by Ollama and FastAPI." />
+  <script type="module" crossorigin src="/assets/index-Dscd4yRa.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-1hUX9ONu.css">
+</head>
+<body class="bg-background font-body text-on-surface scanlines min-h-screen">
+
+  <!-- ==================== HEADER BAR ==================== -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b-2 border-surface-container-highest">
+    <div class="h-7 bg-surface-container-high px-4 border-b-2 border-surface-container-lowest flex items-center justify-between select-none">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 bg-primary-container inline-block"></span>
+        <span class="font-headline text-[10px] text-on-surface uppercase tracking-wider">SYS_SHELL://RECAP-TERMINAL.EXE [NODE_01]</span>
+      </div>
+      <div class="flex items-center gap-1 font-headline text-[10px]">
+        <button id="btn-hdr-min" aria-label="Minimize" class="w-5 h-5 bg-surface-container text-on-surface-variant hover:bg-surface-bright hover:text-on-surface flex items-center justify-center border border-surface-container-lowest active:translate-y-0.5 cursor-pointer" type="button">_</button>
+        <button id="btn-hdr-max" aria-label="Maximize" class="w-5 h-5 bg-surface-container text-on-surface-variant hover:bg-surface-bright hover:text-on-surface flex items-center justify-center border border-surface-container-lowest active:translate-y-0.5 cursor-pointer" type="button">■</button>
+        <button id="btn-hdr-close" aria-label="Close" class="w-5 h-5 bg-surface-container text-on-surface-variant hover:bg-error hover:text-on-error flex items-center justify-center border border-surface-container-lowest active:translate-y-0.5 cursor-pointer" type="button">X</button>
+      </div>
+    </div>
+    <div class="h-16 px-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 cursor-pointer" id="brand-logo-btn">
+        <div class="w-9 h-9 bg-primary-container/20 border-2 border-primary-container text-primary-container flex items-center justify-center font-headline text-lg font-bold">
+          ?
+        </div>
+        <div class="flex flex-col">
+          <span class="font-headline text-base text-primary-container tracking-wider drop-shadow-[0_0_8px_rgba(143,240,181,0.4)]">WHAT DID I MISS?</span>
+          <span class="font-headline text-[10px] text-secondary uppercase">YOUR CHAT RECAP TERMINAL</span>
+        </div>
+      </div>
+      <div class="hidden xl:flex items-center gap-2 px-3 py-1 bg-surface-container-low border-2 border-primary-container/60 shadow-[2px_2px_0px_0px_#090e1b]">
+        <span class="material-symbols-outlined text-primary-container text-[18px]">security</span>
+        <div class="flex flex-col">
+          <span class="font-headline text-[10px] text-primary-container uppercase">LOCAL ONLY SECURE BOUNDARY</span>
+          <span class="font-body text-[11px] text-on-surface-variant">ON-DEVICE OLLAMA + FASTAPI - NO CLOUD DATA TRANSFERS</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="hidden md:flex items-center gap-3 px-3 py-1 bg-surface-container border border-surface-container-highest cursor-pointer hover:bg-surface-bright" id="health-status-badge">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-primary-container animate-pulse" id="health-dot"></span>
+            <span class="font-headline text-[10px] text-primary-container uppercase" id="health-text">ENGINE: READY [127.0.0.1:8000]</span>
+          </div>
+          <div class="h-3 w-px bg-outline-variant"></div>
+          <span class="font-body text-[11px] text-secondary-fixed-dim uppercase" id="mode-badge">OFFLINE SECURE</span>
+        </div>
+        <div class="w-8 h-8 rounded-none bg-primary flex items-center justify-center shadow-[1px_1px_0px_0px_#090e1b] cursor-pointer hover:bg-primary-fixed" id="btn-user-profile" title="Operator Profile">
+          <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="fixed left-0 top-[92px] bottom-7 w-64 bg-surface-container-low border-r-2 border-surface-container-highest z-40 hidden md:flex flex-col justify-between overflow-y-auto">
+    <div class="p-4 flex flex-col gap-4">
+      <div class="bg-surface-container-lowest p-2 border border-surface-container-highest flex items-center justify-between">
+        <span class="font-headline text-[10px] text-secondary uppercase">SUB-ROUTINES</span>
+        <span class="font-headline text-[10px] text-primary-container">[SYS_OK]</span>
+      </div>
+      <nav class="flex flex-col gap-1" id="main-nav">
+        <button class="w-full text-left px-3 py-2 uppercase transition-colors border border-transparent bg-primary-container text-on-primary-container font-headline text-xs nav-link cursor-pointer" data-view="input">
+          ▶ CHAT INGESTION
+        </button>
+        <button class="w-full text-left px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-headline text-xs uppercase transition-colors border border-transparent hover:border-surface-container-highest nav-link cursor-pointer" data-view="results" id="nav-recap-btn">
+          RECAP TERMINAL
+        </button>
+        <button class="w-full text-left px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-headline text-xs uppercase transition-colors border border-transparent hover:border-surface-container-highest nav-link cursor-pointer" data-view="logs" id="nav-logs-btn">
+          PROVENANCE LOGS
+        </button>
+        <button class="w-full text-left px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-headline text-xs uppercase transition-colors border border-transparent hover:border-surface-container-highest nav-link cursor-pointer" data-view="telemetry" id="nav-telemetry-btn">
+          MODEL TELEMETRY
+        </button>
+      </nav>
+    </div>
+    <div class="p-4 border-t-2 border-surface-container-highest bg-surface-container-lowest">
+      <div class="flex items-center justify-between font-headline text-[10px] text-outline mb-1">
+        <span>INFERENCE LATENCY</span>
+        <span class="text-primary-container" id="sidebar-latency">14.2 MS</span>
+      </div>
+      <div class="w-full h-2 bg-surface-container-high overflow-hidden">
+        <div class="h-full bg-primary-container w-2/5"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+  <div class="md:pl-64">
+    <main class="w-full pt-[92px] pb-9 min-h-screen px-4">
+
+      <!-- ALERT MESSAGE BANNER -->
+      <div id="alert-banner" class="hidden w-full mb-4 p-3 bg-error-container text-on-error-container border-2 border-error pixel-border flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-error text-[20px]">warning</span>
+          <span id="alert-text" class="font-headline text-xs"></span>
+        </div>
+        <button id="btn-dismiss-alert" class="px-2 py-0.5 bg-error text-on-error font-headline text-[10px] uppercase cursor-pointer">DISMISS</button>
+      </div>
+
+      <!-- RETRO TOAST NOTIFICATION FLOATER -->
+      <div id="retro-toast" class="hidden fixed bottom-10 right-6 bg-surface-container-highest text-primary-container border-2 border-primary-container shadow-[4px_4px_0px_0px_#090e1b] px-4 py-2 font-headline text-xs z-50 items-center gap-2">
+        <span class="w-2.5 h-2.5 bg-primary-container animate-ping"></span>
+        <span id="toast-text">NOTIFICATION ACKNOWLEDGED</span>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 1: CHAT INPUT SCREEN                                  -->
+      <!-- ========================================================= -->
+      <section id="view-input" class="flex flex-col w-full pb-8">
+        <div class="relative w-full flex flex-col gap-6">
+
+          <!-- Ribbon Status Bar -->
+          <div class="w-full bg-surface-container-low shadow-md p-2 flex flex-wrap items-center justify-between gap-2 border border-surface-container-highest">
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-2 h-2 bg-primary-container shadow-[0_0_8px_currentColor]"></span>
+              <span class="font-headline text-[10px] text-primary-container uppercase tracking-widest">INGEST_STREAM :: BUFFER ID [0x7F2A]</span>
+              <span class="font-body text-xs text-outline">|</span>
+              <span class="font-body text-xs text-on-surface-variant">LOCAL SANDBOX: ISOLATED</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="font-headline text-[10px] text-secondary uppercase">PIPELINE: FASTAPI + OLLAMA</span>
+              <span class="px-1.5 py-0.5 bg-surface-container-high text-primary-fixed font-headline text-[10px]" id="ribbon-mode">LOCAL ENGINE</span>
+            </div>
+          </div>
+
+          <!-- Main Input Retro Container Window -->
+          <div id="main-input-window" class="w-full bg-surface-container shadow-xl flex flex-col pixel-border">
+            <!-- Window Chrome Bar -->
+            <div class="h-8 bg-surface-container-high px-4 flex items-center justify-between select-none">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary-container text-[16px]">terminal</span>
+                <span class="font-headline text-xs text-primary tracking-wide uppercase">▶ CATCH ME UP // CONVERSATION ANALYZER</span>
+              </div>
+              <div class="flex items-center gap-1 font-headline text-[10px]">
+                <span class="text-on-surface-variant font-body text-xs mr-2 hidden sm:inline">TTY: PORT_8000</span>
+                <button id="btn-win-min" aria-label="Minimize Window" class="w-5 h-5 bg-surface-container-highest text-on-surface hover:bg-surface-bright flex items-center justify-center font-bold active:translate-y-0.5 cursor-pointer" type="button">_</button>
+                <button id="btn-win-max" aria-label="Maximize Window" class="w-5 h-5 bg-surface-container-highest text-on-surface hover:bg-surface-bright flex items-center justify-center font-bold active:translate-y-0.5 cursor-pointer" type="button">■</button>
+                <button id="btn-win-close" aria-label="Close Window" class="w-5 h-5 bg-surface-container-highest text-on-surface hover:bg-error hover:text-on-error flex items-center justify-center font-bold active:translate-y-0.5 cursor-pointer" type="button">X</button>
+              </div>
+            </div>
+
+            <!-- Subtitle Bar -->
+            <div class="px-4 py-2 bg-surface-container-lowest flex items-center justify-between flex-wrap gap-2 border-b border-surface-container-highest">
+              <div class="flex items-center gap-1">
+                <span class="font-headline text-sm text-tertiary">Paste the conversation. We'll find what matters.</span>
+                <span class="font-body text-xs text-on-surface-variant ml-2 hidden md:inline">» Zero hallucinations, high-density recall, actionables extracted.</span>
+              </div>
+              <div class="flex items-center gap-1 font-headline text-[10px] text-secondary">
+                <span class="material-symbols-outlined text-[14px]">bolt</span>
+                <span>SPEED: REAL-TIME INFERENCE</span>
+              </div>
+            </div>
+
+            <!-- Window Body Grid -->
+            <div id="win-body-container" class="p-4 md:p-6 flex flex-col gap-6">
+
+              <!-- 1. Operator Handle Configuration -->
+              <div class="bg-surface-container-low p-4 shadow-sm flex flex-col gap-2 pixel-bevel">
+                <div class="flex flex-wrap items-center justify-between gap-1">
+                  <label for="operator-handle" class="flex items-center gap-2 font-headline text-xs text-primary uppercase">
+                    <span class="material-symbols-outlined text-primary-container text-[18px]">badge</span>
+                    <span>YOUR OPERATOR HANDLE / NAME</span>
+                    <span class="px-1.5 py-0.5 bg-primary-container/20 text-primary-container font-headline text-[9px]">REQUIRED</span>
+                  </label>
+                  <div class="flex items-center gap-1">
+                    <span class="font-headline text-[10px] text-on-surface-variant uppercase">PRESETS:</span>
+                    <button type="button" class="px-2 py-0.5 bg-surface-container-highest hover:bg-primary-container hover:text-on-primary-container text-on-surface font-headline text-[10px] transition-colors btn-preset-name cursor-pointer" data-name="Manoj">[Manoj]</button>
+                    <button type="button" class="px-2 py-0.5 bg-surface-container-highest hover:bg-primary-container hover:text-on-primary-container text-on-surface font-headline text-[10px] transition-colors btn-preset-name cursor-pointer" data-name="Alex">[Alex]</button>
+                    <button type="button" class="px-2 py-0.5 bg-surface-container-highest hover:bg-primary-container hover:text-on-primary-container text-on-surface font-headline text-[10px] transition-colors btn-preset-name cursor-pointer" data-name="Dev Lead">[Dev Lead]</button>
+                    <button type="button" class="px-2 py-0.5 bg-surface-container-highest hover:bg-primary-container hover:text-on-primary-container text-on-surface font-headline text-[10px] transition-colors btn-preset-name cursor-pointer" data-name="Sam">[Sam]</button>
+                  </div>
+                </div>
+                <div class="relative w-full flex items-center">
+                  <span class="absolute left-3 text-secondary font-headline select-none">&gt;</span>
+                  <input type="text" id="operator-handle" class="w-full bg-surface-container-lowest text-primary pl-8 pr-4 py-2 font-headline text-sm outline-none focus:bg-surface-container transition-all placeholder:text-outline shadow-inner" placeholder="Enter your name (e.g. Manoj, Alex, Priya)..." value="Manoj" />
+                </div>
+                <div class="flex items-center gap-1 text-secondary-fixed-dim font-body text-xs">
+                  <span class="material-symbols-outlined text-secondary text-[16px]">electric_bolt</span>
+                  <span>Used to detect direct mentions, assigned tasks, and questions directed at you.</span>
+                </div>
+              </div>
+
+              <!-- 2. Group Chat Stream Textarea -->
+              <div class="bg-surface-container-low shadow-sm flex flex-col pixel-bevel">
+                <!-- Textarea Chrome Bar -->
+                <div class="px-4 py-1.5 bg-surface-container-high flex flex-wrap items-center justify-between gap-2 select-none border-b border-surface-container-highest">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-secondary text-[16px]">chat</span>
+                    <span class="font-headline text-[10px] text-on-surface uppercase tracking-wider">RAW CONVERSATION PAYLOAD</span>
+                  </div>
+                  <div class="flex items-center gap-3 font-headline text-[10px] text-on-surface-variant">
+                    <span>FORMAT: RAW STREAM</span>
+                    <span class="text-outline">/</span>
+                    <span id="meta-lines">LINES: 0</span>
+                    <span class="text-outline">/</span>
+                    <span id="meta-chars">CHARS: 0</span>
+                    <span class="text-outline">/</span>
+                    <span class="text-primary-container" id="meta-msgs">DETECTED MESSAGES: 0</span>
+                  </div>
+                </div>
+                <!-- Text Input Container -->
+                <div class="relative w-full bg-surface-container-lowest p-2">
+                  <textarea id="chat-buffer" rows="12" class="w-full h-72 md:h-80 bg-transparent text-on-surface font-body text-sm p-3 outline-none resize-y placeholder:text-outline leading-relaxed shadow-inner" placeholder="Paste your group chat here (WhatsApp, Slack, Discord, Telegram, or plain text logs)...
+
+Expected format example:
+[10:32 AM] Rahul: Manoj, please submit the report by 5pm
+[10:35 AM] Manoj: Working on local Ollama integration now.
+[10:40 AM] Priya: Can someone confirm hackathon submission time?"></textarea>
+                  <!-- Retro Scan Indicator Overlay -->
+                  <div class="absolute bottom-3 right-4 pointer-events-none flex items-center gap-1 bg-surface-container-high/90 px-2 py-1 border border-surface-container-highest">
+                    <span class="inline-block w-1.5 h-3 bg-primary-container animate-pulse"></span>
+                    <span class="font-headline text-[9px] text-primary uppercase">LOCAL TTY ACTIVE</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Action Bar -->
+              <div class="flex flex-wrap items-center justify-between gap-4 bg-surface-container-low p-4 shadow-md border border-surface-container-highest">
+                <div class="flex flex-wrap items-center gap-4">
+                  <!-- Primary Action Button -->
+                  <button type="button" id="btn-analyze" class="px-6 py-2.5 bg-primary-container text-on-primary-container hover:bg-primary font-headline text-sm flex items-center gap-2 uppercase shadow-md active:translate-y-0.5 transition-all group cursor-pointer font-bold">
+                    <span class="material-symbols-outlined text-[20px] group-hover:rotate-45 transition-transform">search</span>
+                    <span>▶ ANALYZE CHAT</span>
+                  </button>
+                  <!-- Load Demo Preset Button -->
+                  <button type="button" id="btn-demo" class="px-4 py-2.5 bg-surface-container text-secondary hover:bg-surface-bright font-headline text-xs flex items-center gap-1.5 uppercase shadow-sm active:translate-y-0.5 transition-all border border-secondary/40 cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                    <span>⚡ LOAD DEMO CHAT</span>
+                  </button>
+                </div>
+                <!-- Clear Button -->
+                <button type="button" id="btn-clear" class="px-4 py-2.5 bg-surface-container-highest text-on-surface-variant hover:text-error hover:bg-surface-bright font-headline text-xs uppercase flex items-center gap-1 shadow-sm transition-colors active:translate-y-0.5 cursor-pointer">
+                  <span class="material-symbols-outlined text-[16px]">refresh</span>
+                  <span>↺ CLEAR BUFFER</span>
+                </button>
+              </div>
+
+              <!-- 4. Privacy Accreditation Banner -->
+              <div class="bg-surface-container-lowest p-4 shadow-inner flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-surface-container-highest">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-primary-container/20 border border-primary-container text-primary-container flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[26px]">verified_user</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                      <span class="font-headline text-xs text-primary uppercase">AIR-GAPPED ARCHITECTURE // LOCAL ONLY</span>
+                      <span class="px-1.5 py-0.5 bg-primary-container text-on-primary-container font-headline text-[9px]">100% PRIVATE</span>
+                    </div>
+                    <p class="font-body text-xs text-on-surface-variant max-w-2xl mt-0.5">
+                      Your chat is processed locally using your device's backend and local AI model (`/analyze`). Zero cloud APIs, zero telemetry, zero saved history.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 self-end md:self-center shrink-0 bg-surface-container px-3 py-1 border border-surface-container-highest">
+                  <span class="w-2 h-2 rounded-none bg-primary-container"></span>
+                  <span class="font-headline text-[10px] text-primary uppercase">OFFLINE OK</span>
+                </div>
+              </div>
+
+              <!-- 5. Validation Status & Preset Datasets -->
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Validation Checklist -->
+                <div class="lg:col-span-4 bg-surface-container-low p-4 shadow-sm flex flex-col gap-2 pixel-bevel">
+                  <div class="font-headline text-[10px] text-secondary uppercase flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">checklist</span>
+                    <span>SYNTAX &amp; READINESS CHECK</span>
+                  </div>
+                  <div class="flex flex-col gap-1.5 pt-1">
+                    <div id="val-handle" class="flex items-center gap-2 p-1.5 bg-surface-container">
+                      <span class="material-symbols-outlined text-primary-container text-[18px]">check_box</span>
+                      <span class="font-body text-xs text-primary font-bold">Operator handle specified</span>
+                    </div>
+                    <div id="val-buffer" class="flex items-center gap-2 p-1.5 bg-surface-container text-on-surface-variant">
+                      <span id="val-buffer-icon" class="material-symbols-outlined text-outline text-[18px]">check_box_outline_blank</span>
+                      <span id="val-buffer-txt" class="font-body text-xs">Chat buffer ready</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- Quick Preset Datasets -->
+                <div class="lg:col-span-8 bg-surface-container-low p-4 shadow-sm flex flex-col gap-2 pixel-bevel">
+                  <div class="flex items-center justify-between">
+                    <span class="font-headline text-[10px] text-secondary uppercase flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[16px]">folder_special</span>
+                      <span>PRE-CONFIGURED SAMPLE SCENARIOS</span>
+                    </span>
+                    <span class="font-headline text-[9px] text-outline">CLICK TO POPULATE</span>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
+                    <div class="bg-surface-container hover:bg-surface-bright p-2.5 flex flex-col justify-between gap-2 cursor-pointer transition-colors border border-surface-container-highest group preset-card" data-preset="hackathon">
+                      <div class="flex flex-col gap-1">
+                        <span class="px-1.5 py-0.5 bg-primary-container/20 text-primary-container font-headline text-[9px] w-max">HACKATHON</span>
+                        <span class="font-headline text-xs text-primary group-hover:text-primary-container">Sprint Report Deadline</span>
+                        <p class="font-body text-[11px] text-on-surface-variant line-clamp-2">Direct mention for Manoj, report deadline 5pm, decision confirmed.</p>
+                      </div>
+                      <div class="flex items-center justify-between pt-1 font-headline text-[9px] text-secondary">
+                        <span>LOAD THREAD</span>
+                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </div>
+                    </div>
+                    <div class="bg-surface-container hover:bg-surface-bright p-2.5 flex flex-col justify-between gap-2 cursor-pointer transition-colors border border-surface-container-highest group preset-card" data-preset="study">
+                      <div class="flex flex-col gap-1">
+                        <span class="px-1.5 py-0.5 bg-secondary-container/30 text-secondary font-headline text-[9px] w-max">STUDY GROUP</span>
+                        <span class="font-headline text-xs text-primary group-hover:text-primary-container">CS301 Exam Prep</span>
+                        <p class="font-body text-[11px] text-on-surface-variant line-clamp-2">Algorithm review meeting, slides task assigned, 7pm deadline.</p>
+                      </div>
+                      <div class="flex items-center justify-between pt-1 font-headline text-[9px] text-secondary">
+                        <span>LOAD THREAD</span>
+                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </div>
+                    </div>
+                    <div class="bg-surface-container hover:bg-surface-bright p-2.5 flex flex-col justify-between gap-2 cursor-pointer transition-colors border border-surface-container-highest group preset-card" data-preset="gaming">
+                      <div class="flex flex-col gap-1">
+                        <span class="px-1.5 py-0.5 bg-tertiary-container/30 text-tertiary-fixed font-headline text-[9px] w-max">GUILD RAID</span>
+                        <span class="font-headline text-xs text-primary group-hover:text-primary-container">Raid Strategy Sync</span>
+                        <p class="font-body text-[11px] text-on-surface-variant line-clamp-2">Sunday 20:00 schedule, healer assignments, consumable prep.</p>
+                      </div>
+                      <div class="flex items-center justify-between pt-1 font-headline text-[9px] text-secondary">
+                        <span>LOAD THREAD</span>
+                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 2: LOADING / SCANNING SCREEN                          -->
+      <!-- ========================================================= -->
+      <section id="view-loading" class="hidden flex-col w-full pb-8">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full items-start">
+          <div class="xl:col-span-8 flex flex-col gap-4">
+            <div class="bg-surface-container-high pixel-border shadow-2xl relative overflow-hidden">
+              <div class="h-8 bg-surface-container-highest px-4 flex items-center justify-between select-none border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 bg-primary-container inline-block"></span>
+                  <span class="font-headline text-[10px] text-on-surface uppercase tracking-widest font-bold">MONITOR_01 // INFERENCE_CORE // LOCAL_OLLAMA</span>
+                </div>
+                <div class="flex items-center gap-2 font-headline text-[10px]">
+                  <span class="px-2 py-0.5 bg-surface-container text-secondary font-mono">BAUD: 115200</span>
+                  <span class="px-2 py-0.5 bg-surface-container-low text-primary-container font-mono">127.0.0.1</span>
+                </div>
+              </div>
+
+              <div class="p-6 bg-surface-container-lowest relative">
+                <div class="flex flex-col lg:flex-row items-center gap-6 mb-6">
+                  <!-- Pixel Robot Scanner Art -->
+                  <div class="relative w-40 h-40 sm:w-48 sm:h-48 shrink-0 bg-surface-container-low pixel-bevel flex items-center justify-center overflow-hidden border border-surface-container-highest">
+                    <svg class="w-32 h-32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+                      <rect x="22" y="6" width="20" height="4" fill="#72d4ed"/>
+                      <rect x="20" y="8" width="4" height="12" fill="#72d4ed"/>
+                      <rect x="40" y="8" width="4" height="12" fill="#72d4ed"/>
+                      <rect x="18" y="14" width="4" height="8" fill="#ffd77e"/>
+                      <rect x="42" y="14" width="4" height="8" fill="#ffd77e"/>
+                      <rect x="24" y="10" width="16" height="6" fill="#303443"/>
+                      <rect x="24" y="16" width="16" height="14" fill="#dee2f5"/>
+                      <rect x="26" y="20" width="12" height="6" fill="#090e1b"/>
+                      <rect x="28" y="22" width="3" height="3" fill="#8ff0b5"/>
+                      <rect x="33" y="22" width="3" height="3" fill="#8ff0b5"/>
+                      <rect x="24" y="30" width="16" height="16" fill="#319db5"/>
+                      <rect x="18" y="32" width="6" height="10" fill="#319db5"/>
+                      <rect x="40" y="32" width="6" height="10" fill="#319db5"/>
+                      <rect x="44" y="26" width="14" height="2" fill="#8ff0b5" class="animate-pulse"/>
+                      <circle cx="50" cy="27" r="5" stroke="#8ff0b5" stroke-width="2" fill="none"/>
+                      <rect x="8" y="44" width="48" height="4" fill="#303443"/>
+                      <rect x="10" y="48" width="12" height="10" fill="#ffd77e"/>
+                      <rect x="26" y="48" width="12" height="10" fill="#72d4ed"/>
+                    </svg>
+                    <div class="absolute bottom-2 flex items-center gap-1 font-headline text-[9px] text-primary-container bg-surface-container-high px-2 py-0.5 border border-primary-container/30">
+                      <span class="w-1.5 h-1.5 bg-primary-container animate-ping"></span>
+                      <span>SCANNING...</span>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col justify-center gap-1 text-left w-full">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="px-2 py-0.5 bg-secondary-container/20 text-secondary font-headline text-[10px] uppercase border border-secondary/40">OLLAMA INFERENCE ACTIVE</span>
+                    </div>
+                    <h1 class="font-headline text-2xl text-primary tracking-tight uppercase m-0 leading-none drop-shadow-[0_0_10px_rgba(143,240,181,0.3)]">
+                      SCANNING CHAT LOGS…
+                    </h1>
+                    <p class="font-body text-sm text-on-surface-variant mt-1 mb-0 leading-relaxed">
+                      Identifying mentions, deadlines, decisions, and action items using local Ollama model.
+                    </p>
+                    <div class="flex items-center gap-4 mt-2 font-headline text-[10px] text-secondary-fixed-dim">
+                      <span class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px] text-primary-container">memory</span>
+                        OLLAMA_CORE: RUNNING
+                      </span>
+                      <span class="text-outline">/</span>
+                      <span class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px] text-tertiary-container">lock</span>
+                        AIR-GAPPED LOCALHOST
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Progress Meter -->
+                <div class="bg-surface-container-low pixel-bevel p-4 flex flex-col gap-2 mb-6">
+                  <div class="flex items-center justify-between font-headline text-[10px]">
+                    <span class="text-on-surface uppercase tracking-wider flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[16px] text-secondary">readiness_score</span>
+                      PROCESSING CHAT BUFFER (LOCAL MODEL)
+                    </span>
+                    <span class="text-primary-container font-headline text-sm" id="loading-pct">IN PROGRESS</span>
+                  </div>
+                  <div class="w-full bg-surface-container-lowest p-1 pixel-bevel flex items-center overflow-hidden">
+                    <div class="h-4 bg-primary-container transition-all duration-300 w-1/3" id="loading-bar-fill"></div>
+                  </div>
+                  <div class="flex items-center justify-between font-headline text-[10px] text-on-surface-variant pt-1">
+                    <span id="loading-status-text">Parsing message timestamps and user handles...</span>
+                    <span class="text-secondary tracking-widest">LOCAL FASTAPI `/analyze`</span>
+                  </div>
+                </div>
+
+                <!-- Telemetry Checklist -->
+                <div class="flex flex-col gap-1.5 font-body text-xs">
+                  <div class="text-on-surface-variant font-headline text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px] text-primary-container">sync_alt</span>
+                    PIPELINE TELEMETRY STAGES
+                  </div>
+                  <div class="bg-surface-container-high p-2 flex items-center justify-between pixel-bevel border-l-4 border-l-primary-container">
+                    <div class="flex items-center gap-2">
+                      <span class="text-primary-container font-bold font-mono">[✔]</span>
+                      <span class="text-on-surface font-headline text-xs">Chat Payload Ingest:</span>
+                      <span class="text-on-surface-variant">Multiline text received</span>
+                    </div>
+                    <span class="font-headline text-[10px] text-primary-container uppercase px-1.5 py-0.5 bg-surface-container-lowest">DONE</span>
+                  </div>
+                  <div class="bg-surface-container-high p-2 flex items-center justify-between pixel-bevel border-l-4 border-l-secondary shadow-md">
+                    <div class="flex items-center gap-2">
+                      <span class="text-secondary font-bold font-mono animate-pulse">[▶]</span>
+                      <span class="text-secondary font-headline text-xs">Ollama Model Inference:</span>
+                      <span class="text-on-surface font-body text-xs">Extracting TL;DR, Attention, Decisions &amp; Tasks...</span>
+                    </div>
+                    <div class="flex items-center gap-1 font-headline text-[9px] text-secondary bg-surface-container-lowest px-1.5 py-0.5">
+                      <span class="w-1.5 h-1.5 bg-secondary animate-ping"></span>
+                      <span>ACTIVE</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Abort Controls Bar -->
+              <div class="h-14 bg-surface-container-high px-4 border-t-2 border-surface-container-lowest flex items-center justify-between">
+                <button type="button" id="btn-abort-analysis" class="px-4 py-1.5 bg-surface-container text-error hover:bg-error hover:text-on-error transition-all font-headline text-xs uppercase tracking-wider pixel-border flex items-center gap-1 active:translate-y-0.5 cursor-pointer">
+                  <span class="material-symbols-outlined text-[16px]">cancel</span>
+                  [ESC] ABORT ANALYSIS
+                </button>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 bg-primary-container inline-block animate-ping"></span>
+                  <span class="font-headline text-xs text-primary-container uppercase">ANALYZING BUFFER...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Stdout Sidebar -->
+          <div class="xl:col-span-4 flex flex-col gap-4">
+            <div class="bg-surface-container-high pixel-border shadow-xl">
+              <div class="h-8 bg-surface-container-highest px-4 flex items-center justify-between select-none border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-secondary text-[16px]">terminal</span>
+                  <span class="font-headline text-[10px] text-on-surface uppercase tracking-wider">LIVE_PARSER_STDOUT</span>
+                </div>
+                <span class="font-headline text-[9px] text-primary-container uppercase">LOG_STREAM</span>
+              </div>
+              <div class="p-3 bg-surface-container-lowest font-mono text-[11px] leading-tight text-on-surface-variant flex flex-col gap-1.5 h-64 overflow-y-auto select-none" id="loading-stdout-log">
+                <div class="text-outline font-headline text-[9px]">// INFERENCE LOG INITIATED</div>
+                <div><span class="text-secondary">[00:01]</span> <span class="text-primary-container">&gt;&gt;</span> Endpoint: POST /analyze</div>
+                <div><span class="text-secondary">[00:02]</span> <span class="text-primary-container">&gt;&gt;</span> Sending payload to FastAPI + Ollama</div>
+                <div class="text-primary-container animate-pulse">&gt;&gt; Awaiting local AI distillation response...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 3: MISSION BRIEFING / ANALYSIS RESULTS SCREEN         -->
+      <!-- ========================================================= -->
+      <section id="view-results" class="hidden flex-col w-full pb-8">
+        <!-- Mission Briefing Top HUD Deck -->
+        <div class="w-full bg-surface-container-low p-4 shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest relative overflow-hidden">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="w-3 h-3 bg-primary-container inline-block shadow-[1px_1px_0px_0px_#090e1b]"></span>
+                <span class="font-headline text-[10px] text-secondary uppercase tracking-widest">[MISSION DEBRIEF]</span>
+                <span class="font-headline text-sm text-primary tracking-wide drop-shadow-[0_0_10px_rgba(143,240,181,0.35)]">
+                  MISSION BRIEFING // RECAP COMPLETE
+                </span>
+                <span class="px-2 py-0.5 bg-primary-container/15 text-primary-container font-headline text-[10px] tracking-wider">
+                  LOCAL ENGINE: VERIFIED
+                </span>
+              </div>
+              <div class="flex items-center gap-2 font-body text-xs text-on-surface-variant">
+                <span>Here's what happened while you were away.</span>
+                <span class="text-outline">/</span>
+                <span class="text-on-surface">Target User: <strong class="text-tertiary-container font-bold font-headline text-xs" id="res-user-display">Manoj</strong></span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" id="btn-new-analysis" class="px-4 py-2 bg-surface-container text-secondary font-headline text-xs uppercase shadow-[3px_3px_0px_0px_#090e1b] hover:bg-surface-bright flex items-center gap-1 border border-secondary/40 cursor-pointer active:translate-y-0.5">
+                <span class="font-headline">&lt;</span>
+                <span>NEW ANALYSIS</span>
+              </button>
+              <button type="button" id="btn-export-report" class="px-4 py-2 bg-primary-container text-on-primary-container font-headline text-xs uppercase shadow-[3px_3px_0px_0px_#090e1b] hover:bg-primary-fixed flex items-center gap-1 font-bold cursor-pointer active:translate-y-0.5">
+                <span class="font-headline">↓</span>
+                <span>EXPORT REPORT (.MD)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: 3-Pillar Pixel HUD Statistics Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <!-- Stat 1: Messages -->
+          <div class="bg-surface-container p-4 shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest relative">
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col">
+                <span class="font-headline text-[10px] text-on-surface-variant uppercase tracking-wider">TOTAL MESSAGES</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-headline text-3xl text-primary font-bold tracking-tight" id="stat-total-messages">0</span>
+                  <span class="font-headline text-[10px] text-secondary">PARSED MESSAGES</span>
+                </div>
+              </div>
+              <div class="w-10 h-10 bg-surface-container-lowest flex items-center justify-center text-primary-container shadow-[2px_2px_0px_0px_#090e1b]">
+                <span class="material-symbols-outlined text-[24px]">chat_bubble</span>
+              </div>
+            </div>
+            <div class="w-full bg-surface-container-lowest h-2 mt-3 p-0.5">
+              <div class="h-full bg-primary-container w-[100%]"></div>
+            </div>
+            <div class="flex justify-between items-center mt-2 font-headline text-[9px] text-outline">
+              <span>SOURCE: USER CHAT</span>
+              <span class="text-primary-container">PROCESSED</span>
+            </div>
+          </div>
+
+          <!-- Stat 2: Participants -->
+          <div class="bg-surface-container p-4 shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest relative">
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col">
+                <span class="font-headline text-[10px] text-on-surface-variant uppercase tracking-wider">PARTICIPANTS</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-headline text-3xl text-secondary font-bold tracking-tight" id="stat-participants">0</span>
+                  <span class="font-headline text-[10px] text-secondary">ACTIVE USERS</span>
+                </div>
+              </div>
+              <div class="w-10 h-10 bg-surface-container-lowest flex items-center justify-center text-secondary shadow-[2px_2px_0px_0px_#090e1b]">
+                <span class="material-symbols-outlined text-[24px]">groups</span>
+              </div>
+            </div>
+            <div class="w-full bg-surface-container-lowest h-2 mt-3 p-0.5">
+              <div class="h-full bg-secondary w-[100%]"></div>
+            </div>
+            <div class="flex justify-between items-center mt-2 font-headline text-[9px] text-outline">
+              <span>CHAT CLUSTER</span>
+              <span class="text-secondary">IDENTIFIED</span>
+            </div>
+          </div>
+
+          <!-- Stat 3: Attention Items -->
+          <div class="bg-surface-container p-4 shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest relative">
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col">
+                <span class="font-headline text-[10px] text-on-surface-variant uppercase tracking-wider">ACTION RADAR</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-headline text-3xl text-error font-bold tracking-tight" id="stat-attention-count">0</span>
+                  <span class="font-headline text-[10px] text-error">[ATTENTION]</span>
+                </div>
+              </div>
+              <div class="w-10 h-10 bg-surface-container-lowest flex items-center justify-center text-error shadow-[2px_2px_0px_0px_#090e1b]">
+                <span class="material-symbols-outlined text-[24px]">notification_important</span>
+              </div>
+            </div>
+            <div class="w-full bg-surface-container-lowest h-2 mt-3 p-0.5">
+              <div class="h-full bg-error w-[100%]"></div>
+            </div>
+            <div class="flex justify-between items-center mt-2 font-headline text-[9px] text-error">
+              <span>PRIORITY ALERTS</span>
+              <span>NEEDS ATTENTION</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: TL;DR Panel -->
+        <div class="bg-surface-container-low mt-4 shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest relative overflow-hidden">
+          <div class="bg-surface-container-highest px-4 py-2 flex items-center justify-between select-none border-b border-surface-container-lowest">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary-container text-[18px]">assignment</span>
+              <span class="font-headline text-xs text-primary tracking-wider uppercase">
+                THE SHORT VERSION // TL;DR SUMMARY
+              </span>
+            </div>
+            <span class="font-headline text-[9px] text-primary-container">VERIFIED BY LOCAL OLLAMA</span>
+          </div>
+          <div class="p-4 bg-surface-container-lowest/90 flex flex-col gap-3" id="res-tldr-content">
+            <!-- TL;DR bullet items rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Priority Filter Bar -->
+        <div class="flex items-center gap-2 mt-4 bg-surface-container-low p-2 border border-surface-container-highest">
+          <span class="font-headline text-[10px] text-secondary uppercase tracking-wider">PRIORITY FILTER:</span>
+          <button type="button" class="btn-prio-filter px-2.5 py-1 bg-primary-container text-on-primary-container font-headline text-[10px] uppercase font-bold cursor-pointer" data-prio="all">ALL</button>
+          <button type="button" class="btn-prio-filter px-2.5 py-1 bg-surface-container text-error hover:bg-error hover:text-on-error font-headline text-[10px] uppercase cursor-pointer" data-prio="high">HIGH</button>
+          <button type="button" class="btn-prio-filter px-2.5 py-1 bg-surface-container text-tertiary-container hover:bg-tertiary-container hover:text-on-tertiary-container font-headline text-[10px] uppercase cursor-pointer" data-prio="medium">MEDIUM</button>
+          <button type="button" class="btn-prio-filter px-2.5 py-1 bg-surface-container text-secondary hover:bg-secondary hover:text-on-secondary font-headline text-[10px] uppercase cursor-pointer" data-prio="low">LOW</button>
+        </div>
+
+        <!-- Two-Column Asymmetrical Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+
+          <!-- LEFT COLUMN (7 Cols): Attention & Decisions -->
+          <div class="lg:col-span-7 flex flex-col gap-4">
+
+            <!-- Section 3: Needs Your Attention -->
+            <div class="bg-surface-container shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest flex flex-col">
+              <div class="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 bg-error inline-block animate-ping"></span>
+                  <span class="font-headline text-xs text-primary uppercase tracking-wider">
+                    PRIORITY ACTION RADAR // NEEDS YOUR ATTENTION
+                  </span>
+                </div>
+                <span class="bg-error/20 text-error px-2 py-0.5 font-headline text-[9px]" id="res-attention-badge">0 ITEMS</span>
+              </div>
+              <div class="p-4 flex flex-col gap-3" id="res-attention-list">
+                <!-- Attention items rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Section 4: Team Decisions -->
+            <div class="bg-surface-container shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest flex flex-col">
+              <div class="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-primary-container text-[18px]">verified</span>
+                  <span class="font-headline text-xs text-primary uppercase tracking-wider">
+                    TEAM DECISIONS
+                  </span>
+                </div>
+                <span class="font-headline text-[9px] text-secondary" id="res-decisions-badge">0 CONFIRMED</span>
+              </div>
+              <div class="p-4 flex flex-col gap-2" id="res-decisions-list">
+                <!-- Decision items rendered dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (5 Cols): Quest Log & Chat Memory -->
+          <div class="lg:col-span-5 flex flex-col gap-4">
+
+            <!-- Section 5: Your Quest Log (Action Items) -->
+            <div class="bg-surface-container shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest flex flex-col">
+              <div class="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-tertiary-container text-[18px]">swords</span>
+                  <span class="font-headline text-xs text-primary uppercase tracking-wider">
+                    YOUR QUEST LOG [ACTION ITEMS]
+                  </span>
+                </div>
+                <span class="font-headline text-[9px] text-tertiary-container" id="res-actions-badge">0 TASKS</span>
+              </div>
+              <div class="p-4 flex flex-col gap-3" id="res-actions-list">
+                <!-- Action items rendered dynamically -->
+              </div>
+              <div class="px-4 py-1.5 bg-surface-container-lowest flex items-center justify-between text-outline font-headline text-[9px] border-t border-surface-container-highest">
+                <span id="quest-progress-txt">PROGRESS: 0 DONE</span>
+                <div class="w-24 bg-surface-container h-2 p-0.5">
+                  <div class="bg-primary-container h-full w-0" id="quest-progress-bar"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 6: Chat Memory / Parsed Messages -->
+            <div class="bg-surface-container shadow-[4px_4px_0px_0px_#090e1b] border border-surface-container-highest flex flex-col">
+              <div class="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-surface-container-lowest">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-secondary text-[18px]">terminal</span>
+                  <span class="font-headline text-xs text-primary uppercase tracking-wider">
+                    CHAT MEMORY // PARSED LOGS
+                  </span>
+                </div>
+                <button type="button" id="btn-toggle-chat-memory" class="text-secondary font-headline text-[10px] hover:text-primary cursor-pointer">
+                  [EXPAND/COLLAPSE]
+                </button>
+              </div>
+              <div class="p-2 bg-surface-container-lowest max-h-80 overflow-y-auto flex flex-col gap-1 font-body text-xs" id="res-messages-list">
+                <!-- Parsed messages rendered dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 4: ERROR / LOCAL ENGINE OFFLINE MODAL                -->
+      <!-- ========================================================= -->
+      <div id="modal-error" class="hidden fixed inset-0 z-50 bg-surface-container-lowest/85 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-surface-container-high pixel-border max-w-lg w-full shadow-2xl p-6 flex flex-col gap-4">
+          <div class="flex items-center gap-2 text-error">
+            <span class="material-symbols-outlined text-[28px]">error</span>
+            <h2 class="font-headline text-base uppercase m-0 text-error">LOCAL ENGINE UNAVAILABLE</h2>
+          </div>
+          <p class="font-body text-sm text-on-surface m-0 leading-relaxed" id="modal-error-message">
+            Unable to connect to local FastAPI backend on <code class="bg-surface-container px-1 text-secondary">http://localhost:8000</code>. Please make sure FastAPI is running.
+          </p>
+          <div class="p-3 bg-surface-container-lowest border border-surface-container-highest flex flex-col gap-1 font-headline text-[10px]">
+            <span class="text-secondary">TROUBLESHOOTING STEPS:</span>
+            <span class="text-on-surface-variant">1. Run your FastAPI app: <code class="text-primary-container">uvicorn main:app --reload --port 8000</code></span>
+            <span class="text-on-surface-variant">2. Ensure Ollama is running locally: <code class="text-primary-container">ollama run llama3</code></span>
+            <span class="text-on-surface-variant">3. Or test offline with <code class="text-secondary">?mock=1</code> in URL query parameters.</span>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button type="button" id="btn-dismiss-error" class="px-4 py-1.5 bg-surface-container text-on-surface font-headline text-xs uppercase pixel-border cursor-pointer">
+              DISMISS
+            </button>
+            <button type="button" id="btn-retry-analysis" class="px-4 py-1.5 bg-primary-container text-on-primary-container font-headline text-xs uppercase pixel-border font-bold cursor-pointer">
+              RETRY ANALYSIS
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROVENANCE LOGS MODAL -->
+      <div id="modal-logs" class="hidden fixed inset-0 z-50 bg-surface-container-lowest/85 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-surface-container-high pixel-border max-w-2xl w-full shadow-2xl p-6 flex flex-col gap-4">
+          <div class="flex items-center justify-between border-b border-surface-container-lowest pb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-secondary text-[24px]">history_edu</span>
+              <h2 class="font-headline text-sm uppercase m-0 text-primary">PROVENANCE LOGS // VERIFICATION AUDIT</h2>
+            </div>
+            <button id="btn-close-logs" type="button" class="w-6 h-6 bg-surface-container hover:bg-error text-on-surface hover:text-on-error flex items-center justify-center font-bold">X</button>
+          </div>
+          <div class="p-3 bg-surface-container-lowest font-mono text-xs text-on-surface-variant flex flex-col gap-2 max-h-96 overflow-y-auto">
+            <div><span class="text-secondary">[AUDIT_LOG_01]</span> Stream Ingest Hash: <code class="text-primary-container">0x7F2A90B</code> (100% On-Device)</div>
+            <div><span class="text-secondary">[AUDIT_LOG_02]</span> Zero Outbound Network Connections Verified via Wireshark / DevTools Socket Auditor.</div>
+            <div><span class="text-secondary">[AUDIT_LOG_03]</span> FastAPI Pipeline: Endpoint <code class="text-primary">POST /analyze</code> receiving JSON payload.</div>
+            <div><span class="text-secondary">[AUDIT_LOG_04]</span> Local Ollama Engine: Executing inference via llama3 / mistral model.</div>
+            <div><span class="text-secondary">[AUDIT_LOG_05]</span> Local Storage Persistence: Disabled (Session memory only).</div>
+          </div>
+          <div class="flex justify-end">
+            <button id="btn-dismiss-logs" type="button" class="px-4 py-1 bg-surface-container text-on-surface font-headline text-xs uppercase pixel-border cursor-pointer">CLOSE LOGS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODEL TELEMETRY MODAL -->
+      <div id="modal-telemetry" class="hidden fixed inset-0 z-50 bg-surface-container-lowest/85 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-surface-container-high pixel-border max-w-2xl w-full shadow-2xl p-6 flex flex-col gap-4">
+          <div class="flex items-center justify-between border-b border-surface-container-lowest pb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-tertiary-container text-[24px]">developer_board</span>
+              <h2 class="font-headline text-sm uppercase m-0 text-primary">MODEL TELEMETRY // HARDWARE STATS</h2>
+            </div>
+            <button id="btn-close-telemetry" type="button" class="w-6 h-6 bg-surface-container hover:bg-error text-on-surface hover:text-on-error flex items-center justify-center font-bold">X</button>
+          </div>
+          <div class="grid grid-cols-2 gap-3 font-headline text-xs">
+            <div class="bg-surface-container-lowest p-3 border border-surface-container-highest flex flex-col gap-1">
+              <span class="text-outline text-[10px]">MODEL ARCHITECTURE</span>
+              <span class="text-primary font-bold">Ollama LLaMA-3 (8B Q4_K_M)</span>
+            </div>
+            <div class="bg-surface-container-lowest p-3 border border-surface-container-highest flex flex-col gap-1">
+              <span class="text-outline text-[10px]">BACKEND FRAMEWORK</span>
+              <span class="text-secondary font-bold">Python FastAPI (Uvicorn)</span>
+            </div>
+            <div class="bg-surface-container-lowest p-3 border border-surface-container-highest flex flex-col gap-1">
+              <span class="text-outline text-[10px]">ESTIMATED LATENCY</span>
+              <span class="text-primary-container font-bold">14.2 MS / TOKEN</span>
+            </div>
+            <div class="bg-surface-container-lowest p-3 border border-surface-container-highest flex flex-col gap-1">
+              <span class="text-outline text-[10px]">VRAM ALLOCATION</span>
+              <span class="text-tertiary-container font-bold">4.2 GB / LOCAL GPU</span>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button id="btn-dismiss-telemetry" type="button" class="px-4 py-1 bg-surface-container text-on-surface font-headline text-xs uppercase pixel-border cursor-pointer">CLOSE TELEMETRY</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="fixed bottom-0 left-0 right-0 h-7 z-50 bg-surface-container-lowest border-t-2 border-surface-container-highest px-4 flex items-center justify-between font-headline text-[10px] text-on-surface-variant select-none">
+    <span>OLLAMA v0.3.12 // LOCAL AI ENGINE // ZERO TELEMETRY // BUILT FOR HACKATHON 2025</span>
+    <div class="flex items-center gap-4">
+      <span class="text-primary-container">MODE: ISOLATED-SANDBOX</span>
+      <span class="text-secondary">SYNC: OFF-GRID</span>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript Entrypoint -->
+</body>
+</html>
